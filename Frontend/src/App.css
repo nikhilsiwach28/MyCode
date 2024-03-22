@@ -1,0 +1,64 @@
+/* Add dark mode styles */
+body {
+  background-color: #1e1e1e; /* Dark background color */
+  color: #ffffff; /* Light text color */
+}
+
+.code-editor-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #2d2d2d; /* Darker background color */
+  border-radius: 10px;
+}
+
+.button-container {
+  margin-bottom: 10px;
+}
+
+.textarea-container {
+  overflow-x: auto;
+}
+
+.code-editor-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  resize: vertical;
+  background-color: #1e1e1e; /* Dark background color */
+  color: #ffffff; /* Light text color */
+}
+
+button {
+  margin-right: 10px;
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  background-color: #007bff;
+  color: #0e0101;
+}
+
+button:hover {
+  background-color: #090a09;
+  color: white;
+}
+
+.selected {
+  background-color: green;
+  color: #fff;
+}
+
+/* Add this CSS to your App.css file */
+
+.output {
+  border: 1px solid #ccc;
+  padding: 10px;
+  overflow: auto; /* Enable vertical and horizontal scrolling if content exceeds box dimensions */
+  max-height: 300px; /* Limit maximum height to enable vertical scrolling */
+  max-width: 100%; /* Ensure the box doesn't exceed the width of its container */
+}
