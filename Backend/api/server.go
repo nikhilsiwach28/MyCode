@@ -13,7 +13,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/nikhilsiwach28/MyCode.git/api/handler"
 	"github.com/nikhilsiwach28/MyCode.git/config"
+	repo "github.com/nikhilsiwach28/MyCode.git/database"
+	"github.com/nikhilsiwach28/MyCode.git/internal/submission"
+	"github.com/nikhilsiwach28/MyCode.git/internal/user"
 	"github.com/nikhilsiwach28/MyCode.git/models"
+	// "github.com/nikhilsiwach28/MyCode.git/queue"
 )
 
 type APIServer struct {
@@ -44,6 +48,12 @@ func (s *APIServer) add(path string, role models.AccessLevelModeEnum, handler ht
 func (s *APIServer) initRoutesAndMiddleware() {
 
 	// ADD Routes here
+	connString := "host=localhost port=5432 user=username password=password dbname=database_name sslmode=disable"
+
+	s.add("/submission", models.AccessLevelUser, handler.NewSubmissionsHandler(submission.New(repo.NewPostgres(connString))))
+	s.add("/user", models.AccessLevelUser, handler.NewUserHandler(user.New(repo.NewPostgres(connString))))
+
+	// s.add("/run",models.AccessLevelGuest, handler.RunCodeHandler())
 
 	s.middlewares = []mux.MiddlewareFunc{
 		mux.CORSMethodMiddleware(s.router),
@@ -81,7 +91,7 @@ func (s *APIServer) run() {
 }
 
 func OptionMiddleware(next http.Handler) http.Handler {
-
+	fmt.Print("hello from middleware")
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
