@@ -2,7 +2,6 @@ package producer
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/nikhilsiwach28/MyCode.git/errors"
 	"github.com/nikhilsiwach28/MyCode.git/models"
@@ -34,7 +33,6 @@ func NewProducer(broker, topic string) *Producer {
 }
 
 func (p *Producer) ProduceMessage(msg models.ResponseMessage) error {
-	fmt.Println("Producing Executed Code")
 	return p.WriteMessages(context.Background(), kafka.Message{
 		Key:   []byte(msg.Key),
 		Value: []byte(msg.Value),

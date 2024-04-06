@@ -31,7 +31,6 @@ func (h *submissionsHandler) initRoutes() *submissionsHandler {
 	h.sRouter.HandleFunc("/submission", serveHTTPWrapper(h.handleGet)).Methods("GET")
 	h.sRouter.HandleFunc("/submission", serveHTTPWrapper(h.handleCreate)).Methods("POST")
 	h.sRouter.HandleFunc("/submission/user", serveHTTPWrapper(h.handleGetUserSubmissions)).Methods("GET")
-
 	// Add other routes as needed
 
 	return h

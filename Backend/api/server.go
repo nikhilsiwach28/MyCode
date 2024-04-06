@@ -17,7 +17,8 @@ import (
 	"github.com/nikhilsiwach28/MyCode.git/internal/submission"
 	"github.com/nikhilsiwach28/MyCode.git/internal/user"
 	"github.com/nikhilsiwach28/MyCode.git/models"
-	// "github.com/nikhilsiwach28/MyCode.git/queue"
+	"github.com/nikhilsiwach28/MyCode.git/queue"
+	"github.com/nikhilsiwach28/MyCode.git/redis"
 )
 
 type APIServer struct {
@@ -50,10 +51,15 @@ func (s *APIServer) initRoutesAndMiddleware() {
 	// ADD Routes here
 	connString := "host=localhost port=5432 user=username password=password dbname=database_name sslmode=disable"
 
+	brokers := []string{"localhost:9092"}
+	kafkaQueue := queue.InitQueue(brokers)
+	redisClient := redis.NewRedisService("localhost:6379", "", 0)
+
 	s.add("/submission", models.AccessLevelUser, handler.NewSubmissionsHandler(submission.New(repo.NewPostgres(connString))))
 	s.add("/user", models.AccessLevelUser, handler.NewUserHandler(user.New(repo.NewPostgres(connString))))
+	// s.add("/run", models.AccessLevelUser, s.handleRun())
 
-	// s.add("/run",models.AccessLevelGuest, handler.RunCodeHandler())
+	s.router.HandleFunc("/run", handler.NewRunHandler(kafkaQueue, redisClient)).Methods("POST", "GET")
 
 	s.middlewares = []mux.MiddlewareFunc{
 		mux.CORSMethodMiddleware(s.router),
@@ -62,6 +68,14 @@ func (s *APIServer) initRoutesAndMiddleware() {
 	}
 	s.router.Use(s.middlewares...)
 	s.httpServer.Handler = s.router
+}
+
+func (s *APIServer) handleRun() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("hello")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Hello from handleRun!"))
+	}
 }
 
 func (s *APIServer) run() {

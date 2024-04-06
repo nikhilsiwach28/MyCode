@@ -9,11 +9,14 @@ import (
 
 	"github.com/nikhilsiwach28/MyCode.git/consumer"
 	"github.com/nikhilsiwach28/MyCode.git/producer"
+	"github.com/nikhilsiwach28/MyCode.git/redis"
 )
 
 func main() {
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+
+	redisClient := redis.NewRedisService("localhost:6379", "", 0)
 
 	// Initialize Kafka consumer
 	consumer, err := consumer.NewConsumerFromEnv()
@@ -31,8 +34,8 @@ func main() {
 	}
 	defer producer.Close()
 
-	// Start consuming messages by passing Producer instance 
-	go consumer.ConsumeMessages(sigterm, producer)
+	// Start consuming messages by passing Producer instance
+	go consumer.ConsumeMessages(sigterm, producer, redisClient)
 
 	// Wait for shutdown signal
 	<-sigterm

@@ -24,18 +24,18 @@ const (
 )
 
 type Submission struct {
-	ID        uuid.UUID               `json:"id" validate:"required" gorm:"primaryKey"`
-	Link      string                  `json:"link"`
-	CreatedBy uuid.UUID               `json:"created_by"`
-	CreatedAt time.Time               `json:"created_at" validate:"required" gorm:"default:CURRENT_TIMESTAMP"`
-	RunTime   string                  `json:"run_time" validate:"required"`
-	Lang      ProgrammingLanguageEnum `json:"lang" validate:"required"`
-	Status    Status                  `json:"status"`
-	Solution  string                  `json:"solution" gorm:"-"`
+	ID         uuid.UUID               `json:"id" validate:"required" gorm:"primaryKey"`
+	InputFile  string                  `json:"input_file"`
+	CreatedBy  uuid.UUID               `json:"created_by"`
+	CreatedAt  time.Time               `json:"created_at" validate:"required" gorm:"default:CURRENT_TIMESTAMP"`
+	RunTime    string                  `json:"run_time" validate:"required"`
+	Lang       ProgrammingLanguageEnum `json:"lang" validate:"required"`
+	Status     Status                  `json:"status"`
+	OutputFile string                  `json:"output_file" gorm:"-"`
 }
 
 type CreateSubmissionAPIRequest struct {
-	Solution  string                  `json:"solution" validate:"required"`
+	InputFile []byte                  `json:"input_file" validate:"required"`
 	CreatedBy uuid.UUID               `json:"created_by"`
 	Lang      ProgrammingLanguageEnum `json:"lang" validate:"required"`
 }
@@ -50,7 +50,7 @@ func (r *CreateSubmissionAPIRequest) Parse(req *http.Request) error {
 func (r *CreateSubmissionAPIRequest) ToSubmissions() *Submission {
 	return &Submission{
 		ID:        uuid.New(),
-		Solution:  r.Solution,
+		InputFile: "",
 		CreatedBy: r.CreatedBy,
 		CreatedAt: time.Now(),
 		Lang:      r.Lang,

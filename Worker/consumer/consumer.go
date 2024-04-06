@@ -2,16 +2,16 @@ package consumer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
 	"github.com/nikhilsiwach28/MyCode.git/docker"
 	"github.com/nikhilsiwach28/MyCode.git/errors"
 	"github.com/nikhilsiwach28/MyCode.git/models"
 	"github.com/nikhilsiwach28/MyCode.git/producer"
+	"github.com/nikhilsiwach28/MyCode.git/redis"
 	"github.com/nikhilsiwach28/MyCode.git/utils"
 	"github.com/segmentio/kafka-go"
 )
@@ -41,7 +41,7 @@ func NewConsumer(broker, topic string) *Consumer {
 	}
 }
 
-func (c *Consumer) ConsumeMessages(sigterm chan os.Signal, producer *producer.Producer) {
+func (c *Consumer) ConsumeMessages(sigterm chan os.Signal, producer *producer.Producer, redis *redis.RedisService) {
 	var wg sync.WaitGroup
 
 consumeLoop:
@@ -59,34 +59,65 @@ consumeLoop:
 				fmt.Printf("Error reading message: %v\n", err)
 				continue consumeLoop
 			}
+
+			// Validate and parse the message
+			requestMsg, err := parseRequestMessage(msg)
+			if err != nil {
+				fmt.Printf("Error parsing request message: %v\n", err)
+				continue consumeLoop
+			}
+
+			
+			// Process the parsed message
 			wg.Add(1)
-			go processMessage(models.RequestMessage{Code: string(msg.Key), Language:string(msg.Value)}, &wg, producer)
+			go processMessage(requestMsg, &wg, producer, redis)
+			
 		}
 	}
 
 	wg.Wait() // Wait for all processing to finish before returning
 }
 
+func parseRequestMessage(msg kafka.Message) (models.RequestMessage, error) {
+	var requestMsg models.RequestMessage
+	err := json.Unmarshal(msg.Value, &requestMsg)
+	if err != nil {
+		return models.RequestMessage{}, err
+	}
+	return requestMsg, nil
+}
 
-func processMessage(msg models.RequestMessage, wg *sync.WaitGroup, producer *producer.Producer) {
+func processMessage(msg models.RequestMessage, wg *sync.WaitGroup, producer *producer.Producer,redis *redis.RedisService) {
 	defer wg.Done()
 	dockerClient, err := docker.NewDockerClient()
 	if err != nil {
 		fmt.Printf("Error creating Docker client: %v\n", err)
 		return
 	}
-
-	// Execute code in Docker container
-	output, err := dockerClient.RunContainer(msg.Code, msg.Language)
+	if file, err := redis.Get(msg.ID); err != nil {
+		fmt.Println("No SUbmission File Found in Redis for SubmissionId = ", msg.ID)
+		//TODO Retry or return
+	} else{
+		output, err := dockerClient.RunContainer(file, msg.Language)
 	if err != nil {
 		fmt.Printf("Error running container: %v\n", err)
 		return
 	}
 
+	// update Redis With Output
+	outputKey := msg.ID + "Output"
+	if err := redis.Set(outputKey, output); err!= nil{
+		fmt.Println("Error inserting Output for submissionID = ", msg.ID)
+	}
+
 	// Produce result message
-	err = producer.ProduceMessage(models.ResponseMessage{Key: "randomId", Value: output})   // need to send codeId in Key
+	err = producer.ProduceMessage(models.ResponseMessage{Key: msg.ID, Value: outputKey}) // need to send codeId in Key
 	if err != nil {
 		fmt.Printf("Error producing message: %v\n", err)
 		// Handle error...
 	}
+	}
+
+	// Execute code in Docker container
+	
 }
