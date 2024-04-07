@@ -8,17 +8,18 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/nikhilsiwach28/MyCode.git/config"
 )
 
 type RedisService struct {
 	client *redis.Client
 }
 
-func NewRedisService(addr, password string, db int) *RedisService {
+func NewRedisService(redisConfig config.RedisConfig) *RedisService {
 	client := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
+		Addr:     redisConfig.Address,
+		Password: redisConfig.Password,
+		DB:       redisConfig.DB,
 	})
 
 	// Ping the Redis server to check the connection
@@ -36,18 +37,16 @@ func NewRedisService(addr, password string, db int) *RedisService {
 
 func (r *RedisService) Set(key, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	fmt.Println("Inserting Submission into Redis")
 	defer cancel()
 	err := r.client.Set(ctx, key, value, 0).Err()
 	if err != nil {
 		return fmt.Errorf("failed to set value in Redis: %v", err)
 	}
-	fmt.Println("Inserted into Redis")
-	
-	if v,err := r.Get(key); err!=nil{
-		fmt.Println("ERROR = ",err)
-	}else{
-		fmt.Println("Value = ",v)
+
+	if v, err := r.Get(key); err != nil {
+		fmt.Println("ERROR = ", err)
+	} else {
+		fmt.Println("Value = ", v)
 	}
 
 	return nil

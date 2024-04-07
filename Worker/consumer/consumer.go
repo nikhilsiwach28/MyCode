@@ -67,11 +67,10 @@ consumeLoop:
 				continue consumeLoop
 			}
 
-			
 			// Process the parsed message
 			wg.Add(1)
 			go processMessage(requestMsg, &wg, producer, redis)
-			
+
 		}
 	}
 
@@ -87,7 +86,7 @@ func parseRequestMessage(msg kafka.Message) (models.RequestMessage, error) {
 	return requestMsg, nil
 }
 
-func processMessage(msg models.RequestMessage, wg *sync.WaitGroup, producer *producer.Producer,redis *redis.RedisService) {
+func processMessage(msg models.RequestMessage, wg *sync.WaitGroup, producer *producer.Producer, redis *redis.RedisService) {
 	defer wg.Done()
 	dockerClient, err := docker.NewDockerClient()
 	if err != nil {
@@ -97,27 +96,24 @@ func processMessage(msg models.RequestMessage, wg *sync.WaitGroup, producer *pro
 	if file, err := redis.Get(msg.ID); err != nil {
 		fmt.Println("No SUbmission File Found in Redis for SubmissionId = ", msg.ID)
 		//TODO Retry or return
-	} else{
+	} else {
 		output, err := dockerClient.RunContainer(file, msg.Language)
-	if err != nil {
-		fmt.Printf("Error running container: %v\n", err)
-		return
+		if err != nil {
+			fmt.Printf("Error running container: %v\n", err)
+			return
+		}
+		// update Redis With Output
+		outputKey := msg.ID + "_output"
+		if err := redis.Set(outputKey, output); err != nil {
+			fmt.Println("Error inserting Output for submissionID = ", msg.ID)
+		}
+
+		// Produce result message
+		err = producer.ProduceMessage(models.ResponseMessage{Key: msg.ID, Value: outputKey}) // need to send codeId in Key
+		if err != nil {
+			fmt.Printf("Error producing message: %v\n", err)
+			// Handle error...
+		}
 	}
 
-	// update Redis With Output
-	outputKey := msg.ID + "Output"
-	if err := redis.Set(outputKey, output); err!= nil{
-		fmt.Println("Error inserting Output for submissionID = ", msg.ID)
-	}
-
-	// Produce result message
-	err = producer.ProduceMessage(models.ResponseMessage{Key: msg.ID, Value: outputKey}) // need to send codeId in Key
-	if err != nil {
-		fmt.Printf("Error producing message: %v\n", err)
-		// Handle error...
-	}
-	}
-
-	// Execute code in Docker container
-	
 }

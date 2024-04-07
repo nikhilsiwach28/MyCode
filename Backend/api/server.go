@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/juju/ratelimit"
 	"github.com/nikhilsiwach28/MyCode.git/api/handler"
 	"github.com/nikhilsiwach28/MyCode.git/config"
 	repo "github.com/nikhilsiwach28/MyCode.git/database"
@@ -49,17 +50,15 @@ func (s *APIServer) add(path string, role models.AccessLevelModeEnum, handler ht
 func (s *APIServer) initRoutesAndMiddleware() {
 
 	// ADD Routes here
-	connString := "host=localhost port=5432 user=username password=password dbname=database_name sslmode=disable"
+	s.add("/submission", models.AccessLevelUser, handler.NewSubmissionsHandler(submission.New(repo.NewPostgres(config.NewPostgresConfig()), repo.NewS3(config.NewS3Config()))))
+	s.add("/user", models.AccessLevelUser, handler.NewUserHandler(user.New(repo.NewPostgres(config.NewPostgresConfig()))))
 
-	brokers := []string{"localhost:9092"}
-	kafkaQueue := queue.InitQueue(brokers)
-	redisClient := redis.NewRedisService("localhost:6379", "", 0)
 
-	s.add("/submission", models.AccessLevelUser, handler.NewSubmissionsHandler(submission.New(repo.NewPostgres(connString))))
-	s.add("/user", models.AccessLevelUser, handler.NewUserHandler(user.New(repo.NewPostgres(connString))))
-	// s.add("/run", models.AccessLevelUser, s.handleRun())
-
-	s.router.HandleFunc("/run", handler.NewRunHandler(kafkaQueue, redisClient)).Methods("POST", "GET")
+	s.router.HandleFunc("/run", handler.NewRunHandler(config.NewWebSocket(), queue.InitKafkaQueue(config.NewKafkaConfig()), redis.NewRedisService(config.NewRedisConfig()))).Methods("POST", "GET")
+	// s.router.HandleFunc("/run", func(w http.ResponseWriter, r *http.Request) {
+	// 	runHandler := handler.NewRunHandler(config.NewWebSocket(), queue.InitKafkaQueue(config.NewKafkaConfig()), redis.NewRedisService(config.NewRedisConfig()))
+	// 	RateLimitMiddleware(runHandler).ServeHTTP(w, r)
+	// })
 
 	s.middlewares = []mux.MiddlewareFunc{
 		mux.CORSMethodMiddleware(s.router),
@@ -68,14 +67,6 @@ func (s *APIServer) initRoutesAndMiddleware() {
 	}
 	s.router.Use(s.middlewares...)
 	s.httpServer.Handler = s.router
-}
-
-func (s *APIServer) handleRun() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("hello")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hello from handleRun!"))
-	}
 }
 
 func (s *APIServer) run() {
@@ -116,6 +107,19 @@ func OptionMiddleware(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, req)
+	})
+}
+
+func RateLimitMiddleware(next http.Handler) http.Handler {
+	// Set maximum requests per second
+	rate := ratelimit.NewBucketWithRate(1, 1)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if rate.TakeAvailable(1) == 0 {
+			http.Error(w, "Too many requests", http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

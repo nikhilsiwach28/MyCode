@@ -30,22 +30,33 @@ func (c ServerConfig) GetWriteTimeout() int {
 }
 
 func NewServerConfig() ServerConfig {
-	rTimeout, errR := strconv.Atoi(getEnvWithDefault("READ_TIMEOUT", "5"))
-	wTimeout, errW := strconv.Atoi(getEnvWithDefault("WRITE_TIMEOUT", "5"))
+	rTimeout, errR := strconv.Atoi(GetEnvWithDefault("READ_TIMEOUT", "5"))
+	wTimeout, errW := strconv.Atoi(GetEnvWithDefault("WRITE_TIMEOUT", "5"))
 
 	if errR != nil || errW != nil {
 		log.Fatal(errR, errW)
 	}
 
 	return ServerConfig{
-		address:      getEnvWithDefault("SERVER_ADDRESS", "localhost"),
-		port:         getEnvWithDefault("SERVER_PORT", "8080"),
+		address:      GetEnvWithDefault("SERVER_ADDRESS", "localhost"),
+		port:         GetEnvWithDefault("SERVER_PORT", "8080"),
 		readTimeout:  rTimeout,
 		writeTimeout: wTimeout,
 	}
 }
 
-func getEnvWithDefault(key string, defaultValue string) string {
+func GetIntEnvWithDefault(key string, defaultValue int) int {
+	if value, found := os.LookupEnv(key); found {
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return val
+	}
+	return defaultValue
+}
+
+func GetEnvWithDefault(key string, defaultValue string) string {
 	if value, found := os.LookupEnv(key); found {
 		return value
 	} else {
@@ -54,5 +65,5 @@ func getEnvWithDefault(key string, defaultValue string) string {
 }
 
 func AuthEnabled() bool {
-	return getEnvWithDefault("AUTH_ENABLED", "false") != "false"
+	return GetEnvWithDefault("AUTH_ENABLED", "false") != "false"
 }

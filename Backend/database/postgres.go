@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nikhilsiwach28/MyCode.git/models"
+	"github.com/nikhilsiwach28/MyCode.git/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -14,7 +15,10 @@ type repository struct {
 	db *gorm.DB
 }
 
-func NewPostgres(connString string) *repository {
+func NewPostgres(config config.PostgresConfig) *repository {
+	connString := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		config.Host, config.Port, config.User, config.Password, config.DBName, config.SSLMode)
+
 	db, err := gorm.Open(postgres.Open(connString), &gorm.Config{})
 	if err != nil {
 		fmt.Println("Error Connecting Psql", err)

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -46,8 +45,9 @@ func (h *submissionsHandler) handleCreate(ctx context.Context, r *http.Request) 
 		log.Println(err)
 		return newAPIError(models.BadRequest.Add(err))
 	}
+
 	submission := request.ToSubmissions()
-	submission, err := h.svc.CreateSubmission(ctx, submission)
+	submission, err := h.svc.CreateSubmission(ctx, submission, request.InputFile)
 	if err != models.NoError {
 		return newAPIError(models.InternalError.Add(err))
 	}
@@ -72,7 +72,7 @@ func (h *submissionsHandler) handleGet(ctx context.Context, r *http.Request) api
 }
 
 func (h *submissionsHandler) handleGetUserSubmissions(ctx context.Context, r *http.Request) apiResponse {
-	fmt.Println("Get codes from User Id")
+
 	userId, err := uuid.Parse(r.URL.Query().Get("user_id"))
 	if err != nil {
 		return newAPIError(models.BadRequest.Add(err))

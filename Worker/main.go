@@ -35,6 +35,7 @@ func main() {
 	defer producer.Close()
 
 	// Start consuming messages by passing Producer instance
+	fmt.Println("Consuming Messages")
 	go consumer.ConsumeMessages(sigterm, producer, redisClient)
 
 	// Wait for shutdown signal

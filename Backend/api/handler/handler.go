@@ -82,8 +82,6 @@ func newAPIError(e models.AppError) *apiError {
 }
 
 func (e *apiError) Write(w http.ResponseWriter) error {
-	// Implement serialization and writing logic for the User API response
-	// Serialize the struct r and write it to the response writer
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(e.status)
 	return json.NewEncoder(w).Encode(e.body)

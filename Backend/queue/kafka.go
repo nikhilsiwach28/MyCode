@@ -4,16 +4,28 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
+	"github.com/nikhilsiwach28/MyCode.git/config"
 	"gopkg.in/Shopify/sarama.v1"
 )
 
+// KafkaQueue represents a Kafka-based message queue.
 type KafkaQueue struct {
-	producer sarama.AsyncProducer
-	consumer sarama.Consumer
+	producer      sarama.AsyncProducer
+	consumer      sarama.Consumer
+	subscribedMap map[string]subscriptionChannels // Map to track subscribed topics
+	mutex         sync.Mutex
 }
 
+// subscriptionChannels represents channels for messages and errors for a subscription.
+type subscriptionChannels struct {
+	messages <-chan *sarama.ConsumerMessage
+	errors   <-chan error
+}
+
+// NewKafkaQueue creates a new Kafka-based message queue.
 func NewKafkaQueue(brokers []string) (*KafkaQueue, error) {
 	config := sarama.NewConfig()
 	config.Consumer.Return.Errors = true
@@ -31,12 +43,23 @@ func NewKafkaQueue(brokers []string) (*KafkaQueue, error) {
 	}
 
 	return &KafkaQueue{
-		producer: producer,
-		consumer: consumer,
+		producer:      producer,
+		consumer:      consumer,
+		subscribedMap: make(map[string]subscriptionChannels), // Initialize map
 	}, nil
 }
 
+// Subscribe subscribes to a Kafka topic and returns channels for receiving messages and errors.
 func (k *KafkaQueue) Subscribe(topic string) (<-chan *sarama.ConsumerMessage, <-chan error) {
+	k.mutex.Lock()
+	defer k.mutex.Unlock()
+
+	// Check if already subscribed
+	if subscription, ok := k.subscribedMap[topic]; ok {
+		return subscription.messages, subscription.errors
+	}
+
+	// Create new subscription
 	partitionConsumer, err := k.consumer.ConsumePartition(topic, 0, sarama.OffsetOldest)
 	if err != nil {
 		panic(err)
@@ -57,9 +80,16 @@ func (k *KafkaQueue) Subscribe(topic string) (<-chan *sarama.ConsumerMessage, <-
 		}
 	}()
 
+	// Update subscribed map
+	k.subscribedMap[topic] = subscriptionChannels{
+		messages: messages,
+		errors:   errors,
+	}
+
 	return messages, errors
 }
 
+// SendMessage sends a message to a Kafka topic.
 func (k *KafkaQueue) SendMessage(topic, message string) error {
 	producerMessage := &sarama.ProducerMessage{
 		Topic: topic,
@@ -71,6 +101,7 @@ func (k *KafkaQueue) SendMessage(topic, message string) error {
 	return nil
 }
 
+// Close closes the Kafka queue.
 func (k *KafkaQueue) Close() {
 	if err := k.consumer.Close(); err != nil {
 		fmt.Printf("Error closing consumer: %s\n", err)
@@ -81,8 +112,9 @@ func (k *KafkaQueue) Close() {
 	}
 }
 
-func InitQueue(brokers []string) *KafkaQueue {
-	queue, err := NewKafkaQueue(brokers)
+// InitKafkaQueue initializes a Kafka-based message queue.
+func InitKafkaQueue(cfg config.KafkaConfig) *KafkaQueue {
+	queue, err := NewKafkaQueue(cfg.Brokers)
 	if err != nil {
 		panic(err)
 	}
